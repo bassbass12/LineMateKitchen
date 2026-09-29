@@ -74,3 +74,24 @@ def load_comments():
             )
 
     return comments
+
+def save_comments(comments):
+    with open("data/comments.csv", "w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+
+        writer.writerow([
+            "id",
+            "ticket_id",
+            "author_id",
+            "body",
+            "created_at"
+        ])
+
+        for comment in comments:
+            writer.writerow([
+                comment.id,
+                comment.ticket_id,
+                comment.author_id,
+                comment.body,
+                comment.created_at.isoformat()
+            ])

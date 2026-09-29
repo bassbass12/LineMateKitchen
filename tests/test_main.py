@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routers.comments import comments
+from app.data_loader import save_comments
 
 client = TestClient(app)
 
@@ -73,6 +75,28 @@ def test_create_comment():
     assert response.status_code == 200
     assert response.json()["body"] == "Test comment"
 
+    comments[:] = [
+        existing_comment
+        for existing_comment in comments
+        if existing_comment.id != 100
+    ]
+
+    save_comments(comments)
+
+
+def test_duplicate_comment():
+    comment = {
+        "id": 1,
+        "ticket_id": 1,
+        "author_id": 10,
+        "body": "Duplicate comment",
+        "created_at": "2026-09-28T22:00:00"
+    }
+
+    response = client.post("/comments/", json=comment)
+
+    assert response.status_code == 409
+
 
 def test_get_comments():
     response = client.get("/comments/")
@@ -81,7 +105,14 @@ def test_get_comments():
 
 def test_ticket_analytics():
     response = client.get("/analytics/tickets")
+
     assert response.status_code == 200
+
+    data = response.json()
+
+    assert "workload" in data
+    assert "average_open_tickets_per_station" in data
+    assert "disproportionate_stations" in data
 
 
 def test_stale_documents():
@@ -96,4 +127,16 @@ def test_ownership_mismatch():
 
 def test_triage():
     response = client.get("/analytics/triage")
+    assert response.status_code == 200
+
+def test_root_uses_dependency():
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "LineMate Kitchen API is running"
+
+
+def test_middleware_request():
+    response = client.get("/documents/")
+
     assert response.status_code == 200

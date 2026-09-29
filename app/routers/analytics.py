@@ -35,15 +35,26 @@ def ticket_workload():
     open_tickets = df[df["status"] == "Open"]
     station_counts = open_tickets.groupby("station").size()
 
-    average_open_tickets = (
-        float(np.mean(station_counts.values))
-        if len(station_counts) > 0
-        else 0
+    station_counts = station_counts.reindex(
+        CREW_STATIONS.values(),
+        fill_value=0
     )
+
+    average_open_tickets = float(np.mean(station_counts.values))
+
+    disproportionate_stations = [
+        {
+            "station": station,
+            "open_ticket_count": int(count)
+        }
+        for station, count in station_counts.items()
+        if count > average_open_tickets
+    ]
 
     return {
         "workload": workload.to_dict(orient="records"),
-        "average_open_tickets_per_station": average_open_tickets
+        "average_open_tickets_per_station": average_open_tickets,
+        "disproportionate_stations": disproportionate_stations
     }
 
 
@@ -94,10 +105,14 @@ def stale_documents():
 
     for document in documents:
         if document.category != "Incident Report":
-            if document.last_reviewed_at is None or document.last_reviewed_at < cutoff:
+            if (
+                document.last_reviewed_at is None
+                or document.last_reviewed_at < cutoff
+            ):
                 stale.append(document)
 
     return stale
+
 
 @router.get("/triage")
 def triage():
